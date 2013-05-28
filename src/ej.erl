@@ -25,15 +25,7 @@
 %% @end
 -module(ej).
 -author('Seth Falcon <seth@userprimary.net').
--export([
-         get/2,
-         get/3,
-         set/3,
-         set_p/3,
-         delete/2,
-         valid/2
-         ]).
-
+%% wrappers for mochijson2
 -export([
          new/0,
          encode/1,
@@ -42,6 +34,16 @@
          decode/2,
          decoder/1
         ]).
+
+%% original ej API
+-export([
+         get/2,
+         get/3,
+         set/3,
+         set_p/3,
+         delete/2,
+         valid/2
+         ]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -53,13 +55,14 @@
               json_plist/0,
               json_term/0]).
 
-%% @doc Create new instance of json_object
+%% @doc Create a new instance of json_object
 -spec(new() -> json_object()).
 new() ->
     {struct, []}.
 
 %% @doc Create an encoder/1 with the given options.
 -type encoder_option() :: handler_option() | utf8_option().
+-type handler_option() :: {handler, null | function()}.
 -type utf8_option() :: boolean(). % Emit unicode as utf8 (default - false)
 -spec(encoder([encoder_option()]) -> function()).
 encoder(Options) ->
@@ -71,6 +74,8 @@ encode(Any) ->
     ej_mochijson2:encode(Any).
 
 %% @doc Create a decoder/1 with the given options.
+-type decoder_option() :: {format, proplist | eep18 | struct} |
+                          {object_hook, null | function()}.
 -spec(decoder([decoder_option()]) -> function()).
 decoder(Options) ->
     ej_mochijson2:decoder(Options).
