@@ -34,6 +34,15 @@
          valid/2
          ]).
 
+-export([
+         new/0,
+         encode/1,
+         encoder/1,
+         decode/1,
+         decode/2,
+         decoder/1
+        ]).
+
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
@@ -43,6 +52,41 @@
 -export_type([json_object/0,
               json_plist/0,
               json_term/0]).
+
+%% @doc Create new instance of json_object
+-spec(new() -> json_object()).
+new() ->
+    {struct, []}.
+
+%% @doc Create an encoder/1 with the given options.
+-type encoder_option() :: handler_option() | utf8_option().
+-type utf8_option() :: boolean(). % Emit unicode as utf8 (default - false)
+-spec(encoder([encoder_option()]) -> function()).
+encoder(Options) ->
+    ej_mochijson2:encoder(Options).
+
+%% @doc Encode the given as JSON to an iolist.
+-spec(encode(json_term()) -> iolist()).
+encode(Any) ->
+    ej_mochijson2:encode(Any).
+
+%% @doc Create a decoder/1 with the given options.
+-spec(decoder([decoder_option()]) -> function()).
+decoder(Options) ->
+    ej_mochijson2:decoder(Options).
+
+%% @doc Decode the given iolist to Erlang terms using the given object format
+%%      for decoding, where proplist returns JSON objects as [{binary(), json_term()}]
+%%      proplists, eep18 returns JSON objects as {[binary(), json_term()]}, and struct
+%%      returns them as-is.
+-spec(decode(iolist(), [{format, proplist | eep18 | struct}]) -> json_term()).
+decode(S, Options) ->
+    ej_mochijson2:decode(S, Options).
+
+%% @doc Decode the given iolist to Erlang terms.
+-spec(decode(iolist()) -> json_term()).
+decode(S) ->
+    ej_mochijson2:decode(S).
 
 %% @doc Extract a value from `Obj'
 %%
@@ -211,11 +255,11 @@ set0([ {select, Filter = {K,_}} | Rest], P, Value, Options) when is_list(P) ->
     MakeObject = proplists:get_value(make_object, Options),
     {Existed, Res} = lists:foldl(fun(E, {WhetherFound, Acc}) ->
         case matching_element(Filter, E) of
-            true -> 
+            true ->
                 ChildElems = object_list(set0(Rest, E, Value, Options)),
                 Child = MakeObject(lists:keystore(as_binary(K), 1, ChildElems, composite_key_as_binary(Filter))),
                 {true, [Child | Acc]};
-            false -> 
+            false ->
                 {WhetherFound, [E | Acc]}
         end
     end, {false, []}, P),
@@ -1030,7 +1074,7 @@ ej_test_() ->
                    %% If we request a composite path that doesn't exist,
                    %% the missing nodes should be created for us dynamically
                    %% to match the filtering criteria we are searching for.
-                   %% Furthermore, this should not affect old values already existing in the 
+                   %% Furthermore, this should not affect old values already existing in the
                    %% same structure.
                    StartData = {struct,[{<<"users">>,[
                         {struct,[{<<"rooms">>,[
@@ -1041,12 +1085,12 @@ ej_test_() ->
                               ]},{<<"id">>,<<"seb">>}]
                         }]
                    }]},
-                   ValidPath = {"users", {select, {"id", "seb"}}, 
-                                "rooms", {select, {"room_id", "livingroom"}}, 
+                   ValidPath = {"users", {select, {"id", "seb"}},
+                                "rooms", {select, {"room_id", "livingroom"}},
                                 "books", {select, {"title", "faust"}}, "rating"},
                    ?assertEqual([5], ej:get(ValidPath, StartData)),
-                   NewPath = {"users", {select, {"id", "seb"}}, 
-                              "rooms", {select, {"room_id", "bathroom"}}, 
+                   NewPath = {"users", {select, {"id", "seb"}},
+                              "rooms", {select, {"room_id", "bathroom"}},
                               "sink"},
                    NewValue = true,
                    Result = ej:set_p(NewPath, StartData, NewValue),
