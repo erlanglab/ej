@@ -190,14 +190,14 @@ json_encode_string(A, State) when is_atom(A) ->
         true ->
             [?Q, L, ?Q];
         false ->
-            json_encode_string_unicode(xmerl_ucs:from_utf8(L), State, [?Q])
+            json_encode_string_unicode(ej_ucs:from_utf8(L), State, [?Q])
     end;
 json_encode_string(B, State) when is_binary(B) ->
     case json_bin_is_safe(B) of
         true ->
             [?Q, B, ?Q];
         false ->
-            json_encode_string_unicode(xmerl_ucs:from_utf8(B), State, [?Q])
+            json_encode_string_unicode(ej_ucs:from_utf8(B), State, [?Q])
     end;
 json_encode_string(I, _State) when is_integer(I) ->
     [?Q, integer_to_list(I), ?Q];
@@ -290,7 +290,7 @@ json_encode_string_unicode([C | Cs], State, Acc) ->
                C when C >= 0, C < $\s ->
                    [unihex(C) | Acc];
                C when C >= 16#7f, C =< 16#10FFFF, State#encoder.utf8 ->
-                   [xmerl_ucs:to_utf8(C) | Acc];
+                   [ej_ucs:to_utf8(C) | Acc];
                C when  C >= 16#7f, C =< 16#10FFFF, not State#encoder.utf8 ->
                    [unihex(C) | Acc];
                C when C < 16#7f ->
@@ -450,12 +450,12 @@ tokenize_string(B, S=#decoder{offset=O}, Acc) ->
                 %% coalesce UTF-16 surrogate pair
                 <<"\\u", D3, D2, D1, D0, _/binary>> = Rest,
                 D = erlang:list_to_integer([D3,D2,D1,D0], 16),
-                [CodePoint] = xmerl_ucs:from_utf16be(<<C:16/big-unsigned-integer,
+                [CodePoint] = ej_ucs:from_utf16be(<<C:16/big-unsigned-integer,
                     D:16/big-unsigned-integer>>),
-                Acc1 = lists:reverse(xmerl_ucs:to_utf8(CodePoint), Acc),
+                Acc1 = lists:reverse(ej_ucs:to_utf8(CodePoint), Acc),
                 tokenize_string(B, ?ADV_COL(S, 12), Acc1);
             true ->
-                Acc1 = lists:reverse(xmerl_ucs:to_utf8(C), Acc),
+                Acc1 = lists:reverse(ej_ucs:to_utf8(C), Acc),
                 tokenize_string(B, ?ADV_COL(S, 6), Acc1)
             end;
         <<_:O/binary, C1, _/binary>> when C1 < 128 ->
@@ -706,7 +706,7 @@ input_validation_test() ->
         {16#10196, <<?Q, 16#F0, 16#90, 16#86, 16#96, ?Q>>} %% denarius
     ],
     lists:foreach(fun({CodePoint, UTF8}) ->
-        Expect = list_to_binary(xmerl_ucs:to_utf8(CodePoint)),
+        Expect = list_to_binary(ej_ucs:to_utf8(CodePoint)),
         Expect = decode(UTF8)
     end, Good),
 
@@ -741,7 +741,7 @@ inline_json_test() ->
     ok.
 
 big_unicode_test() ->
-    UTF8Seq = list_to_binary(xmerl_ucs:to_utf8(16#0001d120)),
+    UTF8Seq = list_to_binary(ej_ucs:to_utf8(16#0001d120)),
     ?assertEqual(
        <<"\"\\ud834\\udd20\"">>,
        iolist_to_binary(encode(UTF8Seq))),
@@ -773,7 +773,7 @@ atom_test() ->
        iolist_to_binary(encode(foo))),
     ?assertEqual(
        <<"\"\\ud834\\udd20\"">>,
-       iolist_to_binary(encode(list_to_atom(xmerl_ucs:to_utf8(16#0001d120))))),
+       iolist_to_binary(encode(list_to_atom(ej_ucs:to_utf8(16#0001d120))))),
     ok.
 
 key_encode_test() ->
@@ -818,18 +818,18 @@ unsafe_chars_test() ->
        json_string_is_safe([16#0001d120])),
     ?assertEqual(
        false,
-       json_bin_is_safe(list_to_binary(xmerl_ucs:to_utf8(16#0001d120)))),
+       json_bin_is_safe(list_to_binary(ej_ucs:to_utf8(16#0001d120)))),
     ?assertEqual(
        [16#0001d120],
-       xmerl_ucs:from_utf8(
+       ej_ucs:from_utf8(
          binary_to_list(
-           decode(encode(list_to_atom(xmerl_ucs:to_utf8(16#0001d120))))))),
+           decode(encode(list_to_atom(ej_ucs:to_utf8(16#0001d120))))))),
     ?assertEqual(
        false,
        json_string_is_safe([16#110000])),
     ?assertEqual(
        false,
-       json_bin_is_safe(list_to_binary(xmerl_ucs:to_utf8([16#110000])))),
+       json_bin_is_safe(list_to_binary(ej_ucs:to_utf8([16#110000])))),
     %% solidus can be escaped but isn't unsafe by default
     ?assertEqual(
        <<"/">>,
